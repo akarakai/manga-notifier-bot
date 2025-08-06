@@ -1,4 +1,4 @@
-class TelegramBot:
-    def __init__(self, token):
-        self.token = token
-    
+import logger
+
+
+log = logger.getLogger(__name__)

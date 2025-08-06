@@ -1,11 +1,14 @@
 from dataclasses import dataclass
+import asyncio
 import datetime
+import logger
 import selenium.webdriver as driver
 import selenium.webdriver.chrome as chrome
 import selenium.webdriver.common.by as by
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+log = logger.get_logger(__name__)
 
 @dataclass
 class Manga:
@@ -21,6 +24,7 @@ class Chapter:
 
 
 class MangaScraper:
+
     def __init__(self):
         self.driver = driver.Firefox()
         self.homepage = "https://weebcentral.com/"
@@ -60,7 +64,8 @@ class MangaScraper:
         self.driver.quit()
 
 
-def main(): 
+async def main(): 
+    log.info("Starting Manga Scraper")
     scraper = MangaScraper()
     scraper.go_to_homepage()
     mangas = scraper.get_queried_mangas("One Piece")
@@ -69,4 +74,4 @@ def main():
     scraper.close()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
