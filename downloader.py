@@ -28,7 +28,7 @@ def download_pdf(urls: list[str]) -> BytesIO:
         img_bytes_list.append(response.content)
 
         # Random short delay between requests
-        time.sleep(random.uniform(1, 3))
+        time.sleep(random.uniform(0.01, 0.1))
 
     if not img_bytes_list:
         raise ValueError("No valid images downloaded. Cannot create PDF.")
