@@ -2,30 +2,13 @@ import dotenv
 from telegram import ReplyKeyboardMarkup, Update
 import logger as logger
 
-from telegram.ext import ApplicationBuilder, CommandHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, ConversationHandler, MessageHandler, filters
 import tg
 from telegram.ext import ContextTypes
+from tg import ConversationStates
 
 
 log = logger.get_logger(__name__)
-
-
-CHOOSE_MANGA = 1
-GET_LAST_CHAPTER = 2
-DOWNLOAD_OR_READ = 3
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    reply_keyboard = [["1", "2", "3"]]
-
-    await update.message.reply_text(
-        "Choose your manga, by inserting a number!\n",
-        reply_markup=ReplyKeyboardMarkup(
-            reply_keyboard, one_time_keyboard=True, input_field_placeholder="Choose a number"
-         )
-    )
-        
-
-
 
 
 
@@ -39,12 +22,19 @@ def main():
 
 
     # conversation handler add manga
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('add', tg.add)],
+        states={
+            ConversationStates.CHOOSE_MANGA: [MessageHandler(callback=tg.choose_manga, filters=filters.TEXT)],
+            ConversationStates.GET_LAST_CHAPTER: [MessageHandler(callback=tg.get_last_chapter, filters=filters.TEXT)],
+        },
+        fallbacks=[CommandHandler('cancel', lambda update, context: update.message.reply_text("Cancelled."))],
+    )
+    bot.add_handler(conv_handler)
+    
 
 
-
-
-
-    start_handler = CommandHandler('start', start)
+    start_handler = CommandHandler('start', tg.help)
     help_handler = CommandHandler('help', tg.help)
     add_helper = CommandHandler('add', tg.add)
 
