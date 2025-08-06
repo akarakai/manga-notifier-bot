@@ -37,7 +37,7 @@ class MangaScraper:
 
     def get_queried_mangas(self, query: str) -> list[Manga]:
         self.driver.find_element(by.By.ID, "quick-search-input").send_keys(query)
-        wait = WebDriverWait(self.driver, 1)
+        wait = WebDriverWait(self.driver, 5)
         container = wait.until(EC.presence_of_element_located((by.By.XPATH, self.mangas_container_xpath)))
         a_list = container.find_elements(by.By.TAG_NAME, "a")
         mangas = []
@@ -60,6 +60,14 @@ class MangaScraper:
             url=url,
             published_at=datetime_obj
         )
+    
+    def get_chapter_image_urls(self, chapter: Chapter) -> list[str]:
+        self.driver.get(chapter.url)
+        xpath_container = "/html/body/main/section[3]"
+        container = self.driver.find_element(by.By.XPATH, xpath_container)
+        image_elements = container.find_elements(by.By.TAG_NAME, "img")
+        image_urls = [img.get_attribute("src") for img in image_elements if img.get_attribute("src")]
+        return image_urls
 
     def close(self):
         print("Closing the browser...")

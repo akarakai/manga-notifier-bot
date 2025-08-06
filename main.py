@@ -5,14 +5,15 @@ import logger as logger
 from telegram.ext import ApplicationBuilder, CommandHandler, ConversationHandler, MessageHandler, filters
 import tg
 from telegram.ext import ContextTypes
+from scraper import MangaScraper, Chapter, Manga
 from tg import ConversationStates
-
 
 log = logger.get_logger(__name__)
 
 
 
 def main(): 
+    
     api_key = dotenv.get_key(".env", "TELEGRAM_API_KEY")
     if not api_key:
         log.error("TELEGRAM_API_KEY environment variable is not set.")

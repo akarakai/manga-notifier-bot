@@ -4,6 +4,7 @@ from telegram.ext import ContextTypes
 from scraper import Chapter, MangaScraper
 from enum import Enum, auto
 from scraper import Manga
+import downloader
 
 log = logger.get_logger(__name__)
 
@@ -89,6 +90,9 @@ async def choose_manga(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Co
         await update.message.reply_text("Invalid choice. Please choose a valid manga.")
         return
     
+    # add chosen manga to context
+    context.user_data['chosen_manga'] = chosen_manga
+
     log.info(f"User selected manga: {chosen_manga.title}")
     await update.message.reply_text(f"You selected: {chosen_manga.title}")
     
@@ -136,13 +140,32 @@ async def get_last_chapter(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
     
     last_chapter: Chapter = context.user_data.get('last_chapter', None)
-    if not last_chapter:
+    choose_manga: Manga = context.user_data.get('chosen_manga', None)
+
+    if not last_chapter or not choose_manga:
         await update.message.reply_text("No last chapter available. Please choose a manga first.")
         return
 
     if user_choice == "Download":
         # TODO Implement download logic here
         await update.message.reply_text("Downloading the last chapter...")
+        # get the urls of the images
+        scraper = MangaScraper()
+        urls = scraper.get_chapter_image_urls(last_chapter)
+        scraper.close()
+        if not urls:
+            await update.message.reply_text("No images found for the last chapter.")
+            return
+        pdf = downloader.download_pdf(urls)
+
+    
+        await update.message.reply_document(
+            document=pdf,
+            filename=f"{choose_manga.title} - {last_chapter.title}.pdf",
+        )
+        
+        log.info("PDF sent successfully.")
+        return
     
     elif user_choice == "Read Online":
         await update.message.reply_text(f"{last_chapter.url}")
