@@ -1,11 +1,8 @@
 import dotenv
-from telegram import ReplyKeyboardMarkup, Update
 import logger as logger
 
 from telegram.ext import ApplicationBuilder, CommandHandler, ConversationHandler, MessageHandler, filters
 import tg
-from telegram.ext import ContextTypes
-from scraper import MangaScraper, Chapter, Manga
 from tg import ConversationStates
 
 log = logger.get_logger(__name__)
