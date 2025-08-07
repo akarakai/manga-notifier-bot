@@ -232,7 +232,7 @@ async def get_last_chapter(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     return ConversationHandler.END
 
 # ====== MANAGE MANGE CONVERSATION ======
-async def list_mangas(update: Update, context: ContextTypes.DEFAULT_TYPE) -> ManageMangaConversationStates | None:
+async def list_mangas(update: Update, context: ContextTypes.DEFAULT_TYPE) -> ManageMangaConversationStates | int | None:
     """List all mangas associated with the user and allow them to choose one to remove."""
     chat_id = update.effective_user.id
     mangas = mangaRepo.find_all_mangas_by_chat_id(chat_id)
@@ -250,7 +250,7 @@ async def list_mangas(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Man
     await update.message.reply_text(
         "Choose the manga which you want to remove.",
         reply_markup=ReplyKeyboardMarkup(
-            [[manga.title] for manga in mangas],
+            [["Go Back ↩️"]] + [[manga.title] for manga in mangas],
             one_time_keyboard=True,
             input_field_placeholder="Choose a manga to remove"
         )
@@ -260,6 +260,11 @@ async def list_mangas(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Man
 async def remove_manga(update: Update, context: ContextTypes.DEFAULT_TYPE) -> ManageMangaConversationStates | int | None:
     """Remove the selected manga from the user's list."""
     user_input = update.message.text.strip()
+
+    if user_input == "Go Back ↩️":
+        return ConversationHandler.END
+
+
     chat_id = update.effective_user.id
     mangas: list[Manga] = context.user_data.get("mangas", [])
 
@@ -270,7 +275,10 @@ async def remove_manga(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Ma
     selected_manga = next((m for m in mangas if m.title == user_input), None)
 
     if not selected_manga:
-        await update.message.reply_text("Invalid choice. Please choose a valid manga.")
+        await update.message.reply_text(
+            "Invalid choice. Please choose a valid manga.",
+            reply_markup=ReplyKeyboardRemove()
+        )
         return
 
     try:
