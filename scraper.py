@@ -10,16 +10,19 @@ log = logger.get_logger(__name__)
 
 
 @dataclass
-class Manga:
-    title: str
-    url: str
-
-@dataclass
 class Chapter:
-    manga: Manga
     title: str 
     url: str
     published_at: datetime
+
+@dataclass
+class Manga:
+    title: str
+    url: str
+    last_chapter: Chapter = None
+
+    def add_chapter(self, chapter: Chapter):
+        self.last_chapter = chapter
 
 
 class MangaScraper:
@@ -54,12 +57,14 @@ class MangaScraper:
         datetime_obj = datetime.datetime.fromisoformat(date)   
         url = last_chapter_div.find_element(by.By.TAG_NAME, "a").get_attribute("href")   
         title = last_chapter_div.find_element(by.By.TAG_NAME, "a").text.split("\n")[0].strip()
-        return Chapter(
-            manga=manga,
+        last_chapter = Chapter(
             title=title,
             url=url,
             published_at=datetime_obj
         )
+        manga.add_chapter(last_chapter)
+        
+        return last_chapter
     
     def get_chapter_image_urls(self, chapter: Chapter) -> list[str]:
         self.driver.get(chapter.url)

@@ -5,8 +5,14 @@ from enum import Enum, auto
 import logger as logger
 from scraper import Chapter, MangaScraper, Manga
 import downloader
+from dataclasses import dataclass
 
 log = logger.get_logger(__name__)
+
+@dataclass
+class UserManga:
+    chat_id: int
+    mangas: list[Manga]
 
 
 class ConversationStates(Enum):
