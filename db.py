@@ -33,9 +33,9 @@ class MangaRepository:
             """)
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS user_mangas (
-                    chat_id INTEGER,
+                    user_id INTEGER,
                     manga_url TEXT,
-                    FOREIGN KEY (chat_id) REFERENCES users(chat_id),
+                    FOREIGN KEY (user_id) REFERENCES users(user_id),
                     FOREIGN KEY (manga_url) REFERENCES mangas(url)
                 )
             """)
@@ -45,7 +45,7 @@ class MangaRepository:
             log.exception(f"Database error: {e}")
             raise
     
-    def save_manga(self, chat_id: int, manga: Manga) -> None:
+    def save_manga(self, user_id: int, manga: Manga) -> None:
         """Save a manga to the database, along with its last chapter."""
         try:
             # check if manga already exist
@@ -53,13 +53,13 @@ class MangaRepository:
             if self.cursor.fetchone():
                 log.info(f"Manga {manga.title} already exists in the database.")
                 # check if the manga is already associated with the user
-                self.cursor.execute("SELECT * FROM user_mangas WHERE chat_id = ? AND manga_url = ?", (chat_id, manga.url))
+                self.cursor.execute("SELECT * FROM user_mangas WHERE user_id = ? AND manga_url = ?", (user_id, manga.url))
                 if self.cursor.fetchone():
-                    log.info(f"Manga {manga.title} is already associated with chat_id {chat_id}. Doing nothing.")
+                    log.info(f"Manga {manga.title} is already associated with user_id {user_id}. Doing nothing.")
                     return
                 # add the manga to user_mangas
-                self.cursor.execute("INSERT INTO user_mangas (chat_id, manga_url) VALUES (?, ?)", (chat_id, manga.url))
-                log.info(f"Manga {manga.title} added to user_mangas for chat_id {chat_id}.")
+                self.cursor.execute("INSERT INTO user_mangas (user_id, manga_url) VALUES (?, ?)", (user_id, manga.url))
+                log.info(f"Manga {manga.title} added to user_mangas for chat_id {user_id}.")
                 return
             
             
@@ -69,16 +69,16 @@ class MangaRepository:
                                 (manga.url, manga.title, manga.last_chapter.url))
             self.cursor.execute("INSERT INTO chapters (url, title, published_at) VALUES (?, ?, ?)", 
                                 (manga.last_chapter.url, manga.last_chapter.title, manga.last_chapter.published_at))
-            self.cursor.execute("INSERT INTO user_mangas (chat_id, manga_url) VALUES (?, ?)", (chat_id, manga.url))
+            self.cursor.execute("INSERT INTO user_mangas (user_id, manga_url) VALUES (?, ?)", (user_id, manga.url))
             self.connection.commit()
-            log.info(f"Manga {manga.title} saved to the database and associated with chat_id {chat_id}.")
+            log.info(f"Manga {manga.title} saved to the database and associated with chat_id {user_id}.")
 
         except sqlite3.Error as e:
             log.exception(f"Error saving manga {manga.title}: {e}")
             self.connection.rollback()
             raise
 
-    def find_all_mangas_by_chat_id(self, chat_id: int) -> list[Manga]:
+    def find_all_mangas_by_chat_id(self, user_id: int) -> list[Manga]:
         # load all mangas associated with a chat_id
         try:
             self.cursor.execute("""
@@ -86,8 +86,8 @@ class MangaRepository:
                 FROM user_mangas um
                 JOIN mangas m ON um.manga_url = m.url
                 JOIN chapters c ON m.last_chapter_url = c.url
-                WHERE um.chat_id = ?
-            """, (chat_id,))
+                WHERE um.user_id = ?
+            """, (user_id,))
             rows = self.cursor.fetchall()
             mangas = [
                 Manga(
@@ -101,10 +101,10 @@ class MangaRepository:
                 )
                 for row in rows
             ]
-            log.info(f"Found {len(mangas)} mangas for chat_id {chat_id}.")
+            log.info(f"Found {len(mangas)} mangas for user_id {user_id}.")
             return mangas
         except sqlite3.Error as e:
-            log.exception(f"Error finding mangas for chat_id {chat_id}: {e}")
+            log.exception(f"Error finding mangas for userid_id {user_id}: {e}")
             raise
     
 class UserRepository:
@@ -114,7 +114,7 @@ class UserRepository:
             self.cursor = self.connection.cursor()
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users (
-                    chat_id INTEGER PRIMARY KEY
+                    user_id INTEGER PRIMARY KEY
                 )
             """)
             self.connection.commit()
@@ -123,24 +123,24 @@ class UserRepository:
             log.exception(f"Database error: {e}")
             raise
     
-    def save_user(self, chat_id: int) -> None:
+    def save_user(self, user_id: int) -> None:
         """Save a user to the database."""
         try:
-            self.cursor.execute("INSERT OR IGNORE INTO users (chat_id) VALUES (?)", (chat_id,))
+            self.cursor.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,))
             self.connection.commit()
-            log.info(f"User with chat_id {chat_id} saved to the database.")
+            log.info(f"User with user_id {user_id} saved to the database.")
         except sqlite3.Error as e:
-            log.exception(f"Error saving user with chat_id {chat_id}: {e}")
+            log.exception(f"Error saving user with user_id {user_id}: {e}")
             self.connection.rollback()
             raise
 
-    def delete_manga_of_user(self, chat_id: int, manga_url: str) -> None:
+    def delete_manga_of_user(self, user_id: int, manga_url: str) -> None:
         """Delete a manga of a user from the database."""
         try:
-            self.cursor.execute("DELETE FROM user_mangas WHERE chat_id = ? AND manga_url = ?", (chat_id, manga_url))
+            self.cursor.execute("DELETE FROM user_mangas WHERE user_id = ? AND manga_url = ?", (user_id, manga_url))
             self.connection.commit()
-            log.info(f"Manga deleted for chat_id {chat_id}.")
+            log.info(f"Manga deleted for user_id {user_id}.")
         except sqlite3.Error as e:
-            log.exception(f"Error deleting manga for chat_id {chat_id}: {e}")
+            log.exception(f"Error deleting manga for user_id {user_id}: {e}")
             self.connection.rollback()
             raise

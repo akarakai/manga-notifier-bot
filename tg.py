@@ -11,11 +11,6 @@ from sqlite3 import Error as DbError
 
 log = logger.get_logger(__name__)
 
-@dataclass
-class UserManga:
-    chat_id: int
-    mangas: list[Manga]
-
 
 class AddMangaConversationStates(Enum):
     CHOOSE_MANGA = auto()
@@ -25,8 +20,6 @@ class ManageMangaConversationStates(Enum):
     LIST_MANGAS = auto()
     CHOOSE_MANGA = auto()
     REMOVE_MANGA = auto()
-
-
 
 
 # ====== COMMAND HANDLERS ======
@@ -44,6 +37,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/help - Show this message\n"
         "/add <manga_title> - Add a manga to your list\n"
         "/list - List your mangas. You can remove the chosen manga\n"
+        "/cancel - Cancel the current operation\n"
     )
 
 
@@ -199,7 +193,7 @@ async def get_last_chapter(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 # ====== MANAGE MANGE CONVERSATION ======
 async def list_mangas(update: Update, context: ContextTypes.DEFAULT_TYPE) -> ManageMangaConversationStates | None:
     """List all mangas associated with the user and allow them to choose one to remove."""
-    chat_id = update.effective_chat.id
+    chat_id = update.effective_user.id
     mangas = mangaRepo.find_all_mangas_by_chat_id(chat_id)
 
     if not mangas:
@@ -225,7 +219,7 @@ async def list_mangas(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Man
 async def remove_manga(update: Update, context: ContextTypes.DEFAULT_TYPE) -> ManageMangaConversationStates | int | None:
     """Remove the selected manga from the user's list."""
     user_input = update.message.text.strip()
-    chat_id = update.effective_chat.id
+    chat_id = update.effective_user.id
     mangas: list[Manga] = context.user_data.get("mangas", [])
 
     if not mangas:
@@ -247,7 +241,6 @@ async def remove_manga(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Ma
 
     context.user_data.clear()
     return ConversationHandler.END
-
 
 
 
