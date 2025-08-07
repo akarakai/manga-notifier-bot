@@ -10,16 +10,19 @@ log = logger.get_logger(__name__)
 
 
 @dataclass
-class Manga:
-    title: str
-    url: str
-
-@dataclass
 class Chapter:
-    manga: Manga
     title: str 
     url: str
     published_at: datetime
+
+@dataclass
+class Manga:
+    title: str
+    url: str
+    last_chapter: Chapter = None
+
+    def add_chapter(self, chapter: Chapter):
+        self.last_chapter = chapter
 
 
 class MangaScraper:
@@ -37,7 +40,7 @@ class MangaScraper:
 
     def get_queried_mangas(self, query: str) -> list[Manga]:
         self.driver.find_element(by.By.ID, "quick-search-input").send_keys(query)
-        wait = WebDriverWait(self.driver, 1)
+        wait = WebDriverWait(self.driver, 5)
         container = wait.until(EC.presence_of_element_located((by.By.XPATH, self.mangas_container_xpath)))
         a_list = container.find_elements(by.By.TAG_NAME, "a")
         mangas = []
@@ -54,12 +57,22 @@ class MangaScraper:
         datetime_obj = datetime.datetime.fromisoformat(date)   
         url = last_chapter_div.find_element(by.By.TAG_NAME, "a").get_attribute("href")   
         title = last_chapter_div.find_element(by.By.TAG_NAME, "a").text.split("\n")[0].strip()
-        return Chapter(
-            manga=manga,
+        last_chapter = Chapter(
             title=title,
             url=url,
             published_at=datetime_obj
         )
+        manga.add_chapter(last_chapter)
+        
+        return last_chapter
+    
+    def get_chapter_image_urls(self, chapter: Chapter) -> list[str]:
+        self.driver.get(chapter.url)
+        xpath_container = "/html/body/main/section[3]"
+        container = self.driver.find_element(by.By.XPATH, xpath_container)
+        image_elements = container.find_elements(by.By.TAG_NAME, "img")
+        image_urls = [img.get_attribute("src") for img in image_elements if img.get_attribute("src")]
+        return image_urls
 
     def close(self):
         print("Closing the browser...")

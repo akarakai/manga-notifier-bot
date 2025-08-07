@@ -1,60 +1,55 @@
 import dotenv
-from telegram import ReplyKeyboardMarkup, Update
 import logger as logger
+from db import MangaRepository
 
-from telegram.ext import ApplicationBuilder, CommandHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, ConversationHandler, MessageHandler, filters
 import tg
-from telegram.ext import ContextTypes
+from telegram.request import HTTPXRequest
+from tg import ConversationStates
 
-
+from scraper import MangaScraper
 log = logger.get_logger(__name__)
 
-
-CHOOSE_MANGA = 1
-GET_LAST_CHAPTER = 2
-DOWNLOAD_OR_READ = 3
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    reply_keyboard = [["1", "2", "3"]]
-
-    await update.message.reply_text(
-        "Choose your manga, by inserting a number!\n",
-        reply_markup=ReplyKeyboardMarkup(
-            reply_keyboard, one_time_keyboard=True, input_field_placeholder="Choose a number"
-         )
-    )
-        
-
-
-
-
-
 def main(): 
-    api_key = dotenv.get_key(".env", "TELEGRAM_API_KEY")
-    if not api_key:
-        log.error("TELEGRAM_API_KEY environment variable is not set.")
-        return
+
+    manga_repo = MangaRepository()
+
+    # scraper = MangaScraper()
+    # scraper.go_to_homepage()
+    # op = scraper.get_queried_mangas("One piece")[0]
+    # ch = scraper.get_last_chapter(op)
+
+
+    # scraper.close()
+
+
+    # api_key = dotenv.get_key(".env", "TELEGRAM_API_KEY")
+    # if not api_key:
+    #     log.error("TELEGRAM_API_KEY environment variable is not set.")
+    #     return
     
-    bot = ApplicationBuilder().token(api_key).build()
+    # request = HTTPXRequest(connect_timeout=30, read_timeout=60)
+    # bot = ApplicationBuilder().token(api_key).request(request).build()
 
+    # # conversation handler add manga
+    # conv_handler = ConversationHandler(
+    #     entry_points=[CommandHandler('add', tg.add)],
+    #     states={
+    #         ConversationStates.CHOOSE_MANGA: [MessageHandler(callback=tg.choose_manga, filters=filters.TEXT)],
+    #         ConversationStates.GET_LAST_CHAPTER: [MessageHandler(callback=tg.get_last_chapter, filters=filters.TEXT)]
+    #     },
+    #     fallbacks=[CommandHandler('cancel', tg.cancel)],
+    # )
+    
+    # start_handler = CommandHandler('start', tg.help)
+    # help_handler = CommandHandler('help', tg.help)
 
-    # conversation handler add manga
+    # bot.add_handler(start_handler)
+    # bot.add_handler(help_handler)
+    # bot.add_handler(conv_handler)
 
-
-
-
-
-    start_handler = CommandHandler('start', start)
-    help_handler = CommandHandler('help', tg.help)
-    add_helper = CommandHandler('add', tg.add)
-
-    bot.add_handler(start_handler)
-    bot.add_handler(help_handler)
-    bot.add_handler(add_helper)
-
-
-    log.info("Starting the bot...")
-    bot.run_polling()
+    # log.info("Starting the bot...")
+    # bot.run_polling()
 
 if __name__ == "__main__":
     main()
