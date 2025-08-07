@@ -43,16 +43,17 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
             return
         
+        #
         manga_list = "\n".join([f"{index}. - {manga.title}" for (index, manga) in enumerate(mangas, start=1)])
-        await update.message.reply_text(
-            f"Choose your manga",
-            reply_markup=ReplyKeyboardMarkup(
-                [manga_list[0:5]], one_time_keyboard=True, input_field_placeholder="Choose a manga"
-        ))
-        # await context.bot.send_message(
-        #     chat_id=update.effective_chat.id,
-        #     text=f"Found the following mangas:\n{manga_list}"
-        # )
+        # await update.message.reply_text(
+        #     f"Choose your manga",
+        #     reply_markup=ReplyKeyboardMarkup(
+        #         [manga_list[0:5]], one_time_keyboard=True, input_field_placeholder="Choose a manga"
+        # ))
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=f"Found the following mangas:\n{manga_list}"
+        )
     except Exception as e:
         log.error(f"Error while processing /add command: {e}")
         await context.bot.send_message(
