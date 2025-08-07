@@ -1,14 +1,13 @@
+from datetime import time
 import dotenv
-import logger as logger
-
+import logging as log
+import pytz
 from telegram.ext import ApplicationBuilder, CommandHandler, ConversationHandler, MessageHandler, filters
-import tg
 from telegram.request import HTTPXRequest
-from tg import AddMangaConversationStates, ManageMangaConversationStates
+import tg
 
-log = logger.get_logger(__name__)
 
-def main(): 
+def main():
     api_key = dotenv.get_key(".env", "TELEGRAM_API_KEY")
     if not api_key:
         log.error("TELEGRAM_API_KEY environment variable is not set.")
@@ -21,8 +20,8 @@ def main():
     add_manga_conv = ConversationHandler(
         entry_points=[CommandHandler('add', tg.add)],
         states={
-            AddMangaConversationStates.CHOOSE_MANGA: [MessageHandler(callback=tg.choose_manga, filters=filters.TEXT)],
-            AddMangaConversationStates.GET_LAST_CHAPTER: [MessageHandler(callback=tg.get_last_chapter, filters=filters.TEXT)]
+            tg.AddMangaConversationStates.CHOOSE_MANGA: [MessageHandler(callback=tg.choose_manga, filters=filters.TEXT)],
+            tg.AddMangaConversationStates.GET_LAST_CHAPTER: [MessageHandler(callback=tg.get_last_chapter, filters=filters.TEXT)]
         },
         fallbacks=[CommandHandler('cancel', tg.cancel)],
     )
@@ -30,23 +29,28 @@ def main():
     manage_manga_conv = ConversationHandler(
         entry_points=[CommandHandler('list', tg.list_mangas)],
         states={
-            ManageMangaConversationStates.REMOVE_MANGA: [MessageHandler(callback=tg.remove_manga, filters=filters.TEXT)]
+            tg.ManageMangaConversationStates.REMOVE_MANGA: [MessageHandler(callback=tg.remove_manga, filters=filters.TEXT)]
         },
         fallbacks=[CommandHandler('cancel', tg.cancel)],
     )
 
-    
-    
     start_handler = CommandHandler('start', tg.start)
     help_handler = CommandHandler('help', tg.help)
+    download_handler = CommandHandler("download", tg.download)
 
     bot.add_handler(start_handler)
     bot.add_handler(help_handler)
 
     bot.add_handler(add_manga_conv)
     bot.add_handler(manage_manga_conv)
+    bot.add_handler(download_handler)
 
     log.info("Starting the bot...")
+
+    # add notifier
+    brussels_time = time(hour=13, minute=30, tzinfo=pytz.timezone('Europe/Brussels'))
+    bot.job_queue.run_daily(tg.notifier, time=brussels_time)
+
     bot.run_polling()
 
 if __name__ == "__main__":

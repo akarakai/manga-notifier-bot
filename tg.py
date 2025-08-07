@@ -5,8 +5,8 @@ from enum import Enum, auto
 import logger as logger
 from scraper import Chapter, MangaScraper, Manga
 import downloader
-from dataclasses import dataclass
-from repo import mangaRepo, userRepo
+from downloader import download_pdf 
+from repo import mangaRepo, userRepo, chapterRepo
 from sqlite3 import Error as DbError
 
 log = logger.get_logger(__name__)
@@ -37,8 +37,49 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/help - Show this message\n"
         "/add <manga_title> - Add a manga to your list\n"
         "/list - List your mangas. You can remove the chosen manga\n"
+        "/download <chapter_url> - Download the requested chapter. Only WeebCentral urls are accepted \n"
         "/cancel - Cancel the current operation\n"
     )
+
+async def download(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Download a chapter from WeebCentral."""
+    log.info(f"/download from {update.effective_user.name} ({update.effective_user.id})")
+    chapter_url = " ".join(context.args)
+    print(chapter_url)
+    if not chapter_url:
+        await update.message.reply_text("Please provide a chapter URL to download.")
+        return
+    if not chapter_url.startswith("https://weebcentral.com/chapters"):
+        await update.message.reply_text("Invalid URL. Please provide a valid WeebCentral chapter URL.")
+        return
+    try:
+        scraper = MangaScraper()
+
+        chapter = chapterRepo.find_chapter(chapter_url)
+        manga_title, chapter_title = None, None
+        if not chapter:
+            # you have to scrape this chapter
+            manga_title, chapter_title = scraper.get_data_from_chapter_url(chapter_url)
+
+        # TODO change
+        img_urls = scraper.get_chapter_image_urls(Chapter(
+            "NO TITLE",
+            chapter_url,
+            "NO DATETIME"
+        ))
+        img_bytes = download_pdf(img_urls)
+        await update.message.reply_document(
+            document=img_bytes,
+            filename=f"{manga_title} - {chapter_title}.pdf",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        log.info(f"Chapter {chapter_title} from the Manga {manga_title} was successfully downloaded")
+    except Exception as e:
+        log.error(f"Error downloading chapter: {e}")
+        await update.message.reply_text("An error occurred while downloading the chapter.")
+        return
+    finally:
+        scraper.close()
 
 
 
@@ -241,6 +282,36 @@ async def remove_manga(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Ma
 
     context.user_data.clear()
     return ConversationHandler.END
+
+
+
+async def notifier(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Notify all users about new chapters for their subscribed mangas."""
+    log.info("Running notifier job...")
+    scraper = MangaScraper()
+    # get all mangas from the database
+    mangas = mangaRepo.find_all_mangas()
+    
+    try:
+        for manga in mangas:
+            scraped_last_chapter = scraper.get_last_chapter(manga)
+            if scraped_last_chapter.url != manga.last_chapter.url:
+                log.info(f"New chapter found for {manga.title}: {scraped_last_chapter.title}")
+                manga.add_chapter(scraped_last_chapter)
+                # notify all users subscribed to this manga
+                user_ids = userRepo.find_user_ids_by_manga_url(manga.url)
+                for user_id in user_ids:
+                    context.bot.send_message(
+                        user_id=user_id,
+                        text=f"{scraped_last_chapter.url}\n"
+                    )
+
+    except Exception as e:
+        log.error(f"Error in notifier: {e}")
+        return
+    finally:
+        scraper.close()
+    
 
 
 

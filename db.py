@@ -106,7 +106,58 @@ class MangaRepository:
         except sqlite3.Error as e:
             log.exception(f"Error finding mangas for userid_id {user_id}: {e}")
             raise
+
+    def find_all_mangas(self) -> list[Manga]:
+        """Find all mangas in the database."""
+        try:
+            self.cursor.execute("""
+                SELECT m.url, m.title, c.url, c.title, c.published_at 
+                FROM mangas m
+                JOIN chapters c ON m.last_chapter_url = c.url
+            """)
+            rows = self.cursor.fetchall()
+            mangas = [
+                Manga(
+                    url=row[0],
+                    title=row[1],
+                    last_chapter=Chapter(
+                        url=row[2],
+                        title=row[3],
+                        published_at=row[4]
+                    )   
+                )
+                for row in rows
+            ]
+            log.info(f"Found {len(mangas)} mangas in the database.")
+            return mangas
+        except sqlite3.Error as e:
+            log.exception(f"Error finding all mangas: {e}")
+            raise
     
+    def find_manga_by_chapter_url(self, chapter_url: str) -> Manga | None:
+        """Find a manga by its chapter URL."""
+        try:
+            self.cursor.execute("""
+                SELECT m.url, m.title, c.url, c.title, c.published_at 
+                FROM mangas m
+                JOIN chapters c ON m.last_chapter_url = c.url
+                WHERE c.url = ?
+            """, (chapter_url,))
+            row = self.cursor.fetchone()
+            if row:
+                return Manga(
+                    url=row[0],
+                    title=row[1],
+                    last_chapter=Chapter(
+                        url=row[2],
+                        title=row[3],
+                        published_at=row[4]
+                    )   
+                )
+            return None
+        except sqlite3.Error as e:
+            log.exception(f"Error finding manga by chapter URL {chapter_url}: {e}")
+            raise
 class UserRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         try:
@@ -133,6 +184,29 @@ class UserRepository:
             log.exception(f"Error saving user with user_id {user_id}: {e}")
             self.connection.rollback()
             raise
+    
+    def find_all_user_ids(self) -> list[int]:
+        """Find all user IDs in the database."""
+        try:
+            self.cursor.execute("SELECT user_id FROM users")
+            rows = self.cursor.fetchall()
+            user_ids = [row[0] for row in rows]
+            log.info(f"Found {len(user_ids)} user IDs in the database.")
+            return user_ids
+        except sqlite3.Error as e:
+            log.exception(f"Error finding user IDs: {e}")
+            raise
+    def find_user_ids_by_manga_url(self, manga_url: str) -> list[int]:
+        """Find all user IDs associated with a manga URL."""
+        try:
+            self.cursor.execute("SELECT user_id FROM user_mangas WHERE manga_url = ?", (manga_url,))
+            rows = self.cursor.fetchall()
+            user_ids = [row[0] for row in rows]
+            log.info(f"Found {len(user_ids)} user IDs for manga URL {manga_url}.")
+            return user_ids
+        except sqlite3.Error as e:
+            log.exception(f"Error finding user IDs for manga URL {manga_url}: {e}")
+            raise
 
     def delete_manga_of_user(self, user_id: int, manga_url: str) -> None:
         """Delete a manga of a user from the database."""
@@ -144,3 +218,25 @@ class UserRepository:
             log.exception(f"Error deleting manga for user_id {user_id}: {e}")
             self.connection.rollback()
             raise
+
+class ChapterRepository:
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+        self.cursor = self.connection.cursor()
+    
+    def find_chapter(self, chapter_url: str) -> Chapter | None:
+        """Find a chapter by its URL."""
+        try:
+            self.cursor.execute("SELECT * FROM chapters WHERE url = ?", (chapter_url,))
+            row = self.cursor.fetchone()
+            if row:
+                return Chapter(
+                    url=row[0],
+                    title=row[1],
+                    published_at=row[2]
+                )
+            return None
+        except sqlite3.Error as e:
+            log.exception(f"Error finding chapter with URL {chapter_url}: {e}")
+            raise
+        
