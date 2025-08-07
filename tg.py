@@ -6,6 +6,8 @@ import logger as logger
 from scraper import Chapter, MangaScraper, Manga
 import downloader
 from dataclasses import dataclass
+from repo import mangaRepo, userRepo
+from sqlite3 import Error as DbError
 
 log = logger.get_logger(__name__)
 
@@ -15,12 +17,24 @@ class UserManga:
     mangas: list[Manga]
 
 
-class ConversationStates(Enum):
+class AddMangaConversationStates(Enum):
     CHOOSE_MANGA = auto()
     GET_LAST_CHAPTER = auto()
 
+class ManageMangaConversationStates(Enum):
+    LIST_MANGAS = auto()
+    CHOOSE_MANGA = auto()
+    REMOVE_MANGA = auto()
+
+
+
 
 # ====== COMMAND HANDLERS ======
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    log.info(f"/start from {update.effective_user.name} ({user_id})")
+    userRepo.save_user(user_id)
+    await help(update, context)
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     log.info(f"/help from {update.effective_user.name} ({update.effective_user.id})")
@@ -28,11 +42,14 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Welcome to the Manga Notifier Bot.\n\n"
         "Available commands:\n"
         "/help - Show this message\n"
-        "/add <manga_title> - Add a manga to your list"
+        "/add <manga_title> - Add a manga to your list\n"
+        "/list - List your mangas. You can remove the chosen manga\n"
     )
 
 
-async def add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> ConversationStates | None:
+
+# ====== ADD MANGA CONVERSATION ======
+async def add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> AddMangaConversationStates | None:
     log.info(f"/add from {update.effective_user.name} ({update.effective_user.id})")
 
     if not context.args:
@@ -60,7 +77,7 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Conversatio
                 input_field_placeholder="Choose a manga"
             )
         )
-        return ConversationStates.CHOOSE_MANGA
+        return AddMangaConversationStates.CHOOSE_MANGA
 
     except Exception as e:
         log.error(f"Error in /add: {e}")
@@ -68,10 +85,7 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Conversatio
     finally:
         scraper.close()
 
-
-# ====== CONVERSATION HANDLERS ======
-
-async def choose_manga(update: Update, context: ContextTypes.DEFAULT_TYPE) -> ConversationStates | None:
+async def choose_manga(update: Update, context: ContextTypes.DEFAULT_TYPE) -> AddMangaConversationStates | None:
     user_input = update.message.text.strip()
     mangas: list[Manga] = context.user_data.get("mangas", [])
 
@@ -111,14 +125,20 @@ async def choose_manga(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Co
                 input_field_placeholder="Choose an option"
             )
         )
-        return ConversationStates.GET_LAST_CHAPTER
+
+        # Save manga to the database
+        chat_id = update.effective_user.id
+        mangaRepo.save_manga(chat_id, selected_manga)
+
+        return AddMangaConversationStates.GET_LAST_CHAPTER
 
     except Exception as e:
         log.error(f"Error retrieving last chapter: {e}")
         await update.message.reply_text("An error occurred while retrieving the last chapter.")
+    except DbError as e:
+        await update.message.reply_text("An error occurred while saving the manga to the database.\nYou will not be notified about new chapters.")    
     finally:
         scraper.close()
-
 
 async def get_last_chapter(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     CHOICES = ["Download", "Read Online", "Do Nothing"]
@@ -175,6 +195,61 @@ async def get_last_chapter(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     context.user_data.clear()
     return ConversationHandler.END
+
+# ====== MANAGE MANGE CONVERSATION ======
+async def list_mangas(update: Update, context: ContextTypes.DEFAULT_TYPE) -> ManageMangaConversationStates | None:
+    """List all mangas associated with the user and allow them to choose one to remove."""
+    chat_id = update.effective_user.id
+    mangas = mangaRepo.find_all_mangas_by_chat_id(chat_id)
+
+    if not mangas:
+        await update.message.reply_text(
+            "You have no mangas in your list.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return
+    
+    # add mangas to user data for later use
+    context.user_data['mangas'] = mangas
+
+    await update.message.reply_text(
+        "Choose the manga which you want to remove.",
+        reply_markup=ReplyKeyboardMarkup(
+            [[manga.title] for manga in mangas],
+            one_time_keyboard=True,
+            input_field_placeholder="Choose a manga to remove"
+        )
+    )
+    return ManageMangaConversationStates.REMOVE_MANGA
+
+async def remove_manga(update: Update, context: ContextTypes.DEFAULT_TYPE) -> ManageMangaConversationStates | int | None:
+    """Remove the selected manga from the user's list."""
+    user_input = update.message.text.strip()
+    chat_id = update.effective_user.id
+    mangas: list[Manga] = context.user_data.get("mangas", [])
+
+    if not mangas:
+        await update.message.reply_text("No mangas available to remove.")
+        return
+
+    selected_manga = next((m for m in mangas if m.title == user_input), None)
+
+    if not selected_manga:
+        await update.message.reply_text("Invalid choice. Please choose a valid manga.")
+        return
+
+    try:
+        userRepo.delete_manga_of_user(chat_id, selected_manga.url)
+        await update.message.reply_text(f"{selected_manga.title} has been removed from your list.")
+    except DbError as e:
+        log.error(f"Error removing manga: {e}")
+        await update.message.reply_text("An error occurred while removing the manga.")
+
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
+
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
