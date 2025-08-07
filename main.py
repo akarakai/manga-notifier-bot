@@ -1,14 +1,20 @@
-from datetime import time
+from datetime import time, timedelta
 import dotenv
 import logging as log
 import pytz
 from telegram.ext import ApplicationBuilder, CommandHandler, ConversationHandler, MessageHandler, filters
 from telegram.request import HTTPXRequest
 import tg
+import os
+import sys
 
+def resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(sys.argv[0])))
+    return os.path.join(base_path, relative_path)
 
 def main():
-    api_key = dotenv.get_key(".env", "TELEGRAM_API_KEY")
+    api_key = dotenv.get_key(resource_path(".env"), "TELEGRAM_API_KEY")
     if not api_key:
         log.error("TELEGRAM_API_KEY environment variable is not set.")
         return
@@ -48,8 +54,9 @@ def main():
     log.info("Starting the bot...")
 
     # add notifier
-    brussels_time = time(hour=13, minute=30, tzinfo=pytz.timezone('Europe/Brussels'))
-    bot.job_queue.run_daily(tg.notifier, time=brussels_time)
+    # brussels_time = time(hour=13, minute=30, tzinfo=pytz.timezone('Europe/Brussels'))
+    # bot.job_queue.run_daily(tg.notifier, time=brussels_time)
+    bot.job_queue.run_repeating(tg.notifier, interval=3600, first=timedelta(minutes=10))
 
     bot.run_polling()
 

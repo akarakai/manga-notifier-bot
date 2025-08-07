@@ -1,2 +1,7 @@
 .env
 database.db
+build
+dist
+main.spec
+__pycache__
+.manga-env
