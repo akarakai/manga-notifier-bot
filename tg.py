@@ -199,7 +199,7 @@ async def get_last_chapter(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 # ====== MANAGE MANGE CONVERSATION ======
 async def list_mangas(update: Update, context: ContextTypes.DEFAULT_TYPE) -> ManageMangaConversationStates | None:
     """List all mangas associated with the user and allow them to choose one to remove."""
-    chat_id = update.effective_user.id
+    chat_id = update.effective_chat.id
     mangas = mangaRepo.find_all_mangas_by_chat_id(chat_id)
 
     if not mangas:
@@ -225,7 +225,7 @@ async def list_mangas(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Man
 async def remove_manga(update: Update, context: ContextTypes.DEFAULT_TYPE) -> ManageMangaConversationStates | int | None:
     """Remove the selected manga from the user's list."""
     user_input = update.message.text.strip()
-    chat_id = update.effective_user.id
+    chat_id = update.effective_chat.id
     mangas: list[Manga] = context.user_data.get("mangas", [])
 
     if not mangas:
